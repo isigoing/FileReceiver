@@ -1,4 +1,3 @@
-import com.sun.org.apache.xpath.internal.SourceTree;
 
 public class FsmFileReceiver {
     // all states for this FSM
