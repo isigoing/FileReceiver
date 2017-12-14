@@ -8,8 +8,10 @@ import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
 
-public class TestSender {
-    public static void main(String[] args) {
+public class TestSender implements Runnable{
+    @Override
+    public void run() {
+
         byte[] data = new byte[1200];
         Arrays.fill(data,(byte)1);
         data[1199] = 0;
@@ -51,5 +53,6 @@ public class TestSender {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 }
