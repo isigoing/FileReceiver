@@ -6,17 +6,22 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 
-public class FsmFileReceiver implements Runnable{
+public class FsmFileReceiver implements Runnable {
+    private int seq = 0;
+    private long checksum = 0;
+
     @Override
     public void run() {
-        int ack = 0;
-        long checksum = 0;
 
 
         int port = 10_000;
         byte[] pkt = new byte[1209];
         byte[] data = new byte[1200];
+
+        Checksum checker = new CRC32();
 
 
         try {
@@ -28,16 +33,37 @@ public class FsmFileReceiver implements Runnable{
                 while (true) {
                     receiverSocket.receive(packet);
                     extractPkt(data, packet);
+                    checker.update(data, 0, data.length);
 
-                    if(currentState == State.WAIT_FOR_ZERO){
-                        System.out.println("balbaldldsafhl");
+                    if (currentState == State.WAIT_FOR_ZERO &&
+                            checksum == checker.getValue() &&
+                            seq == 0) {
+                        //toDo deliver data, send ack, changes State
                     }
 
+                    if (currentState == State.WAIT_FOR_ZERO &&
+                            checksum != checker.getValue() ||
+                            seq == 1) {
+                        //toDo send ack again
+                    }
+
+                    if (currentState == State.WAIT_FOR_ONE &&
+                            checksum == checker.getValue() &&
+                            seq == 1) {
+                        //toDo deliver data, send ack, changes State
+                    }
+
+                    if (currentState == State.WAIT_FOR_ONE &&
+                            checksum != checker.getValue() ||
+                            seq == 0) {
+                        //toDo send ack again
+                    }
+
+
                 }
-            }
-            catch (SocketTimeoutException e) {
+            } catch (SocketTimeoutException e) {
                 System.out.println("Timeout Exception");
-            }catch (Exception e) {
+            } catch (Exception e) {
                 System.out.println("Good Morning Exception");
             }
 
@@ -45,14 +71,13 @@ public class FsmFileReceiver implements Runnable{
             e.printStackTrace();
         }
     }
-    private static void extractPkt(byte[] data, DatagramPacket packet) throws IOException {
-        int ack;
-        long checksum;
+
+    private void extractPkt(byte[] data, DatagramPacket packet) throws IOException {
         System.out.println("Start");
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(packet.getData()));
 
-        ack = in.read();
-        System.out.println("ack " + ack);
+        seq = in.read();
+        System.out.println("seq " + seq);
 
         byte[] check = new byte[8];
 
@@ -69,10 +94,11 @@ public class FsmFileReceiver implements Runnable{
 
         System.out.println("data length " + data.length);
 
-        for (int i = 0; i < data.length; i++){
+        for (int i = 0; i < data.length; i++) {
             data[i] = in.readByte();
             System.out.println("data " + data[i]);
         }
+
         System.out.println("End");
     }
 
