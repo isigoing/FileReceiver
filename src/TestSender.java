@@ -1,8 +1,9 @@
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
@@ -49,6 +50,16 @@ public class TestSender implements Runnable{
             InetAddress ia = InetAddress.getLocalHost();
             DatagramPacket packet = new DatagramPacket(data, data.length, ia, 10000);
             clientSocket.send(packet);
+
+
+            byte[] pkt = new byte[9];
+            DatagramSocket receiverSocket = new DatagramSocket(9000);
+            receiverSocket.setSoTimeout(10_000);
+            DatagramPacket ackpkt = new DatagramPacket(pkt, pkt.length);
+            System.out.println("Waiting for ACK...");
+
+            receiverSocket.receive(ackpkt);
+            System.out.println("received ack");
 
         } catch (IOException e) {
             e.printStackTrace();

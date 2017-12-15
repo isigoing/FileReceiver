@@ -1,17 +1,12 @@
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
+import java.io.*;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
 public class FsmFileReceiver implements Runnable {
-    private int seq = 0;
-    private long checksum = 0;
+    private int seq;
+    private long checksum;
 
     @Override
     public void run() {
@@ -35,28 +30,28 @@ public class FsmFileReceiver implements Runnable {
                     extractPkt(data, packet);
                     checker.update(data, 0, data.length);
 
+
+                    //toDo aufpassen dass nur eins ausgeführt wird !!!
                     if (currentState == State.WAIT_FOR_ZERO &&
                             checksum == checker.getValue() &&
                             seq == 0) {
                         //toDo deliver data, send ack, changes State
-                    }
-
-                    if (currentState == State.WAIT_FOR_ZERO &&
-                            checksum != checker.getValue() ||
-                            seq == 1) {
+                        processMsg(Msg.CORRECT_PACKET_ZERO);
+                    } else if (currentState == State.WAIT_FOR_ZERO &&
+                            (checksum != checker.getValue() ||
+                                    seq == 1)) {
                         //toDo send ack again
-                    }
-
-                    if (currentState == State.WAIT_FOR_ONE &&
+                        processMsg(Msg.CORRUPT_PACKET);
+                    } else if (currentState == State.WAIT_FOR_ONE &&
                             checksum == checker.getValue() &&
                             seq == 1) {
                         //toDo deliver data, send ack, changes State
-                    }
-
-                    if (currentState == State.WAIT_FOR_ONE &&
-                            checksum != checker.getValue() ||
-                            seq == 0) {
+                        processMsg(Msg.CORRECT_PACKET_ONE);
+                    } else if (currentState == State.WAIT_FOR_ONE &&
+                            (checksum != checker.getValue() ||
+                                    seq == 0)) {
                         //toDo send ack again
+                        processMsg(Msg.CORRUPT_PACKET);
                     }
 
 
@@ -109,7 +104,7 @@ public class FsmFileReceiver implements Runnable {
 
     // all messages/conditions which can occur
     enum Msg {
-        CORRECT_PACKET_ONE, CORRECT_PACKET_ZERO,
+        CORRECT_PACKET_ONE, CORRECT_PACKET_ZERO, CORRUPT_PACKET
     }
 
     private State currentState;
@@ -119,7 +114,9 @@ public class FsmFileReceiver implements Runnable {
         currentState = State.WAIT_FOR_ZERO;
         transition = new Transition[State.values().length][Msg.values().length];
         transition[State.WAIT_FOR_ZERO.ordinal()][Msg.CORRECT_PACKET_ZERO.ordinal()] = new ReceivePkt();
+        transition[State.WAIT_FOR_ZERO.ordinal()][Msg.CORRUPT_PACKET.ordinal()] = new ResendAck();
         transition[State.WAIT_FOR_ONE.ordinal()][Msg.CORRECT_PACKET_ONE.ordinal()] = new ReceivePkt();
+        transition[State.WAIT_FOR_ONE.ordinal()][Msg.CORRUPT_PACKET.ordinal()] = new ResendAck();
         System.out.println("INFO FSM constructed, current state: " + currentState);
     }
 
@@ -142,12 +139,51 @@ public class FsmFileReceiver implements Runnable {
         public State execute(Msg input) {
             System.out.println("Paket received");
             if (currentState == State.WAIT_FOR_ONE) {
+                sendAck(1);
                 return State.WAIT_FOR_ZERO;
             } else {
+                sendAck(0);
                 return State.WAIT_FOR_ONE;
             }
         }
     }
 
+    class ResendAck extends Transition {
+        @Override
+        public State execute(Msg input) {
+            System.out.println("Resend Ack");
+            if (currentState == State.WAIT_FOR_ONE) {
+                sendAck(0);
+                return currentState;
+            } else {
+                sendAck(1);
+                return currentState;
+            }
 
+        }
+    }
+
+    private void sendAck(int number) {
+        byte[] data = new byte[0];
+        ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(byteOut);
+        try {
+            out.write(number);
+            Checksum checksum = new CRC32();
+            checksum.update(data, 0, data.length);
+            out.writeLong(checksum.getValue());
+            out.write(data);
+            data = byteOut.toByteArray();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            DatagramSocket socket = new DatagramSocket();
+            InetAddress ia = InetAddress.getLocalHost();
+            DatagramPacket packet = new DatagramPacket(data, data.length, ia, 9000);
+            socket.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }
