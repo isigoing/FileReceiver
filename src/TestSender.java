@@ -4,41 +4,59 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.util.Arrays;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
 
-public class TestSender implements Runnable{
+public class TestSender implements Runnable {
     @Override
     public void run() {
 
         byte[] data = new byte[1200];
-        Arrays.fill(data,(byte)1);
-        data[1199] = 0;
+//        Arrays.fill(data, (byte) 1);
+        data[1199] = 1;
 
         ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(byteOut);
         try {
-            out.write(0);
+
 
 
             Checksum checksum = new CRC32();
-            checksum.update(data,0,data.length);
+
+
+            System.out.println(out.size());
+            data[0] = 'h';
+            data[1] = 'e';
+            data[2] = 'l';
+            data[3] = 'l';
+            data[4] = 'o';
+            data[5] = '.';
+            data[6] = 't';
+            data[7] = 'x';
+            data[8] = 't';
+            checksum.update(data, 0, data.length);
             System.out.println(checksum.getValue());
 
+            out.write(0);
             out.writeLong(checksum.getValue());
-
+            out.writeInt(9);
             out.write(data);
-            System.out.println(out.size());
-
             data = byteOut.toByteArray();
 
-            System.out.println(data.length);
-//            byte b[] = bOut.toByteArray();
-//            for(int i = 0; i < b.length; i++){
-//                System.out.println((char)b[i] + " ");
-//            }
+            System.out.println("data length: " + data.length);
+            byte b[] = byteOut.toByteArray();
+            int counter = 0;
+            for (int i = 0; i < b.length; i++) {
+                System.out.println(b[i] + " ");
+                counter++;
+            }
+            System.out.println("counter: " + counter);
+            System.out.println("------------------------------------------------------------------\n" +
+                    "------------------------------------------------------------------\n" +
+                    "------------------------------------------------------------------\n" +
+                    "------------------------------------------------------------------\n");
+
         } catch (IOException e) {
             e.printStackTrace();
         }
