@@ -10,6 +10,8 @@ public class FsmFileReceiver implements Runnable {
     private int contentLength;
     private File file;
     private boolean fileExists = false;
+    private InetAddress returnAdress;
+    private int returnPort;
 
 
     @Override
@@ -77,6 +79,8 @@ public class FsmFileReceiver implements Runnable {
         System.out.println("Start");
 
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(packet.getData()));
+        returnAdress = packet.getAddress();
+        returnPort = packet.getPort();
 
         // Read SEQ 0/1
         seq = in.read();
@@ -246,8 +250,8 @@ public class FsmFileReceiver implements Runnable {
         }
         try {
             DatagramSocket socket = new DatagramSocket();
-            InetAddress ia = InetAddress.getLocalHost();
-            DatagramPacket packet = new DatagramPacket(data, data.length, ia, 9000);
+//          InetAddress ia = InetAddress.getLocalHost();
+            DatagramPacket packet = new DatagramPacket(data, data.length, returnAdress, 9000);
             socket.send(packet);
         } catch (IOException e) {
             e.printStackTrace();
