@@ -35,7 +35,10 @@ public class FsmFileReceiver implements Runnable {
                 while (true) {
                     receiverSocket.receive(packet);
                     extractPkt(data, packet);
-                    checker.update(data, 0, data.length);
+
+
+                    checker.update(data, 0, contentLength);
+                    System.out.println(checker.getValue());
 
 
                     //toDo aufpassen dass nur eins ausgeführt wird !!!
@@ -251,7 +254,8 @@ public class FsmFileReceiver implements Runnable {
         try {
             DatagramSocket socket = new DatagramSocket();
 //          InetAddress ia = InetAddress.getLocalHost();
-            DatagramPacket packet = new DatagramPacket(data, data.length, returnAdress, 9000);
+
+            DatagramPacket packet = new DatagramPacket(data, data.length, returnAdress, 8000);
             socket.send(packet);
         } catch (IOException e) {
             e.printStackTrace();
