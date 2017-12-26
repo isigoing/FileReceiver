@@ -36,9 +36,10 @@ public class FsmFileReceiver implements Runnable {
                     receiverSocket.receive(packet);
                     extractPkt(data, packet);
 
-
+                    System.out.println("content length: " + contentLength);
+                    System.out.println(checksum);
                     checker.update(data, 0, contentLength);
-                    System.out.println(checker.getValue());
+                    System.out.println("checksum of send data: "+ checker.getValue());
 
 
                     //toDo aufpassen dass nur eins ausgeführt wird !!!
@@ -73,7 +74,7 @@ public class FsmFileReceiver implements Runnable {
                 e.printStackTrace();
             }
 
-        } catch (SocketException  e) {
+        } catch (SocketException e) {
             e.printStackTrace();
         }
     }
@@ -99,7 +100,7 @@ public class FsmFileReceiver implements Runnable {
         buffer.put(check);
         buffer.flip();
         checksum = buffer.getLong();
-        System.out.println("checksum " + checksum);
+        System.out.println("checksum of received data " + checksum);
 
         // Combine Content Length Bytes
         byte[] contentL = new byte[4];
@@ -119,8 +120,6 @@ public class FsmFileReceiver implements Runnable {
             data[i] = in.readByte();
             System.out.println("data " + data[i]);
         }
-
-
 
 
         // Save data to File or create a new File
@@ -144,8 +143,8 @@ public class FsmFileReceiver implements Runnable {
 
         } else {
 
-            if(contentLength == 1200){
-                FileOutputStream fop = new FileOutputStream(file,true);
+            if (contentLength == 1200) {
+                FileOutputStream fop = new FileOutputStream(file, true);
                 fop.write(data);
                 fop.flush();
                 fop.close();
@@ -156,7 +155,7 @@ public class FsmFileReceiver implements Runnable {
                     newData[i] = data[i];
                     System.out.println(newData[i]);
                 }
-                FileOutputStream fop = new FileOutputStream(file,true);
+                FileOutputStream fop = new FileOutputStream(file, true);
                 fop.write(newData);
                 fop.flush();
                 fop.close();
@@ -164,7 +163,6 @@ public class FsmFileReceiver implements Runnable {
 
             }
         }
-
 
 
         System.out.println("End");
@@ -239,24 +237,30 @@ public class FsmFileReceiver implements Runnable {
 
     private void sendAck(int number) {
         byte[] data = new byte[0];
+        byte[] numberByte = new byte[1];
         ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(byteOut);
+        numberByte[0] = (byte) number;
         try {
             out.write(number);
             Checksum checksum = new CRC32();
-            checksum.update(data, 0, data.length);
+            checksum.update(numberByte, 0, 1);
+            System.out.println();
+            System.out.println(checksum.getValue());
             out.writeLong(checksum.getValue());
             out.write(data);
             data = byteOut.toByteArray();
+            System.out.println(data.length);
         } catch (IOException e) {
             e.printStackTrace();
         }
         try {
             DatagramSocket socket = new DatagramSocket();
-//          InetAddress ia = InetAddress.getLocalHost();
-
-            DatagramPacket packet = new DatagramPacket(data, data.length, returnAdress, 8000);
+   //         InetAddress ia = InetAddress.getLocalHost();
+            System.out.println("raus damit");
+            DatagramPacket packet = new DatagramPacket(data, data.length, returnAdress, 9000);
             socket.send(packet);
+            System.out.println("gesendet");
         } catch (IOException e) {
             e.printStackTrace();
         }
