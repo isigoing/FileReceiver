@@ -33,13 +33,14 @@ public class FsmFileReceiver implements Runnable {
             System.out.println("Waiting for packets...");
             try {
                 while (true) {
+
+
                     receiverSocket.receive(packet);
                     extractPkt(data, packet);
-
-                    System.out.println("content length: " + contentLength);
-                    System.out.println(checksum);
+                    System.out.println();
                     checker.update(data, 0, contentLength);
-                    System.out.println("checksum of send data: "+ checker.getValue());
+                    System.out.println(checksum);
+                    System.out.println("checksum of received data: "+ checker.getValue());
 
 
                     //toDo aufpassen dass nur eins ausgeführt wird !!!
@@ -243,11 +244,11 @@ public class FsmFileReceiver implements Runnable {
         numberByte[0] = (byte) number;
         try {
             out.write(number);
-            Checksum checksum = new CRC32();
-            checksum.update(numberByte, 0, 1);
+            Checksum ackChecksum = new CRC32();
+            ackChecksum.update(numberByte, 0, 1);
             System.out.println();
-            System.out.println(checksum.getValue());
-            out.writeLong(checksum.getValue());
+            System.out.println(ackChecksum.getValue());
+            out.writeLong(ackChecksum.getValue());
             out.write(data);
             data = byteOut.toByteArray();
             System.out.println(data.length);
