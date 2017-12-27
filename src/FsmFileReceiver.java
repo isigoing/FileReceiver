@@ -22,7 +22,8 @@ public class FsmFileReceiver implements Runnable {
         byte[] pkt = new byte[1213];
         byte[] data = new byte[1200];
 
-        Checksum checker = new CRC32();
+
+
 
 
         try {
@@ -34,10 +35,11 @@ public class FsmFileReceiver implements Runnable {
             try {
                 while (true) {
 
-
+                    CRC32 checker = new CRC32();
                     receiverSocket.receive(packet);
                     extractPkt(data, packet);
                     System.out.println();
+                    checker.reset();
                     checker.update(data, 0, contentLength);
                     System.out.println(checksum);
                     System.out.println("checksum of received data: "+ checker.getValue());
@@ -97,7 +99,12 @@ public class FsmFileReceiver implements Runnable {
             check[i] = in.readByte();
             System.out.println("checksum (for loop) " + check[i]);
         }
+
+        System.out.println("check with buffer " +ByteBuffer.wrap(check).getLong());
+
+
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer.clear();
         buffer.put(check);
         buffer.flip();
         checksum = buffer.getLong();
@@ -244,7 +251,8 @@ public class FsmFileReceiver implements Runnable {
         numberByte[0] = (byte) number;
         try {
             out.write(number);
-            Checksum ackChecksum = new CRC32();
+            CRC32 ackChecksum = new CRC32();
+            ackChecksum.reset();
             ackChecksum.update(numberByte, 0, 1);
             System.out.println();
             System.out.println(ackChecksum.getValue());
