@@ -12,6 +12,7 @@ public class FsmFileReceiver implements Runnable {
     private boolean fileExists = false;
     private InetAddress returnAdress;
     private int returnPort;
+    private int counter = 0;
 
 
     @Override
@@ -84,6 +85,7 @@ public class FsmFileReceiver implements Runnable {
 
     private void extractPkt(byte[] data, DatagramPacket packet) throws IOException {
         System.out.println("Start");
+        counter++;
 
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(packet.getData()));
         returnAdress = packet.getAddress();
@@ -142,11 +144,6 @@ public class FsmFileReceiver implements Runnable {
             System.out.println(String.valueOf(string));
             file = new File(string);
 
-            FileOutputStream fop = new FileOutputStream(file);
-            fop.write(data);
-            fop.flush();
-            fop.close();
-
             fileExists = true;
 
         } else {
@@ -161,7 +158,7 @@ public class FsmFileReceiver implements Runnable {
                 byte[] newData = new byte[contentLength];
                 for (int i = 0; i < newData.length; i++) {
                     newData[i] = data[i];
-                    System.out.println(newData[i]);
+                    System.out.println((char)newData[i]);
                 }
                 FileOutputStream fop = new FileOutputStream(file, true);
                 fop.write(newData);
@@ -169,10 +166,13 @@ public class FsmFileReceiver implements Runnable {
                 fop.close();
 
 
+                fileExists = false;
+
             }
         }
 
 
+        System.out.println("counter " + counter);
         System.out.println("End");
     }
 

@@ -77,6 +77,7 @@ public class TestSender implements Runnable {
             System.out.println("Waiting for ACK...");
 
             receiverSocket.receive(ackpkt);
+
             System.out.println("received ack");
 
         } catch (IOException e) {
