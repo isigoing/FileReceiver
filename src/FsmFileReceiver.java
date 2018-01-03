@@ -24,51 +24,53 @@ public class FsmFileReceiver implements Runnable {
         byte[] data = new byte[1200];
 
 
-
-
-
         try {
             DatagramSocket receiverSocket = new DatagramSocket(port);
-            receiverSocket.setSoTimeout(10_000);
+//            receiverSocket.setSoTimeout(10_000);
             DatagramPacket packet = new DatagramPacket(pkt, pkt.length);
+            Manipulator manipulator = new Manipulator(receiverSocket);
 //            FileOutputStream fop = new FileOutputStream(file);
             System.out.println("Waiting for packets...");
             try {
                 while (true) {
 
                     CRC32 checker = new CRC32();
-                    receiverSocket.receive(packet);
-                    extractPkt(data, packet);
-                    System.out.println();
-                    checker.reset();
-                    checker.update(data, 0, contentLength);
-                    System.out.println(checksum);
-                    System.out.println("checksum of received data: "+ checker.getValue());
+//                    receiverSocket.receive(packet);
+                    packet = manipulator.manipulate(packet);
+                    if (packet != null) {
+
+                        extractPkt(data, packet);
+                        System.out.println();
+                        checker.reset();
+                        checker.update(data, 0, contentLength);
+                        System.out.println(checksum);
+                        System.out.println("checksum of received data: " + checker.getValue());
 
 
-                    //toDo aufpassen dass nur eins ausgeführt wird !!!
-                    if (currentState == State.WAIT_FOR_ZERO &&
-                            checksum == checker.getValue() &&
-                            seq == 0) {
-                        //toDo deliver data, send ack, changes State
-                        processMsg(Msg.CORRECT_PACKET_ZERO);
-                    } else if (currentState == State.WAIT_FOR_ZERO &&
-                            (checksum != checker.getValue() ||
-                                    seq == 1)) {
-                        //toDo send ack again
-                        processMsg(Msg.CORRUPT_PACKET);
-                    } else if (currentState == State.WAIT_FOR_ONE &&
-                            checksum == checker.getValue() &&
-                            seq == 1) {
-                        //toDo deliver data, send ack, changes State
-                        processMsg(Msg.CORRECT_PACKET_ONE);
-                    } else if (currentState == State.WAIT_FOR_ONE &&
-                            (checksum != checker.getValue() ||
-                                    seq == 0)) {
-                        //toDo send ack again
-                        processMsg(Msg.CORRUPT_PACKET);
+                        //toDo aufpassen dass nur eins ausgeführt wird !!!
+                        if (currentState == State.WAIT_FOR_ZERO &&
+                                checksum == checker.getValue() &&
+                                seq == 0) {
+                            //toDo deliver data, send ack, changes State
+                            processMsg(Msg.CORRECT_PACKET_ZERO);
+                        } else if (currentState == State.WAIT_FOR_ZERO &&
+                                (checksum != checker.getValue() ||
+                                        seq == 1)) {
+                            //toDo send ack again
+                            processMsg(Msg.CORRUPT_PACKET);
+                        } else if (currentState == State.WAIT_FOR_ONE &&
+                                checksum == checker.getValue() &&
+                                seq == 1) {
+                            //toDo deliver data, send ack, changes State
+                            processMsg(Msg.CORRECT_PACKET_ONE);
+                        } else if (currentState == State.WAIT_FOR_ONE &&
+                                (checksum != checker.getValue() ||
+                                        seq == 0)) {
+                            //toDo send ack again
+                            processMsg(Msg.CORRUPT_PACKET);
+                        }
+
                     }
-
 
                 }
             } catch (SocketTimeoutException e) {
@@ -102,7 +104,7 @@ public class FsmFileReceiver implements Runnable {
             System.out.println("checksum (for loop) " + check[i]);
         }
 
-        System.out.println("check with buffer " +ByteBuffer.wrap(check).getLong());
+        System.out.println("check with buffer " + ByteBuffer.wrap(check).getLong());
 
 
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
@@ -126,10 +128,10 @@ public class FsmFileReceiver implements Runnable {
         System.out.println("data length " + data.length);
 
         // Control Output for data
-        for (int i = 0; i < data.length; i++) {
-            data[i] = in.readByte();
-            System.out.println("data " + data[i]);
-        }
+//        for (int i = 0; i < data.length; i++) {
+//            data[i] = in.readByte();
+//            System.out.println("data " + data[i]);
+//        }
 
 
         // Save data to File or create a new File
@@ -158,7 +160,7 @@ public class FsmFileReceiver implements Runnable {
                 byte[] newData = new byte[contentLength];
                 for (int i = 0; i < newData.length; i++) {
                     newData[i] = data[i];
-                    System.out.println((char)newData[i]);
+//                    System.out.println((char) newData[i]);
                 }
                 FileOutputStream fop = new FileOutputStream(file, true);
                 fop.write(newData);
@@ -265,7 +267,7 @@ public class FsmFileReceiver implements Runnable {
         }
         try {
             DatagramSocket socket = new DatagramSocket();
-   //         InetAddress ia = InetAddress.getLocalHost();
+            //         InetAddress ia = InetAddress.getLocalHost();
             System.out.println("raus damit");
             DatagramPacket packet = new DatagramPacket(data, data.length, returnAdress, 9000);
             socket.send(packet);
