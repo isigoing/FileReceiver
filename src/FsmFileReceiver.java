@@ -2,7 +2,6 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
-import java.util.zip.Checksum;
 
 public class FsmFileReceiver implements Runnable {
     private int seq;
@@ -18,11 +17,9 @@ public class FsmFileReceiver implements Runnable {
     @Override
     public void run() {
 
-
         int port = 10_000;
         byte[] pkt = new byte[1213];
         byte[] data = new byte[1200];
-
 
         try {
             DatagramSocket receiverSocket = new DatagramSocket(port);
@@ -30,7 +27,7 @@ public class FsmFileReceiver implements Runnable {
             DatagramPacket packet = new DatagramPacket(pkt, pkt.length);
 //            Manipulator manipulator = new Manipulator(receiverSocket);
 //            FileOutputStream fop = new FileOutputStream(file);
-            System.out.println("Waiting for packets...");
+            System.out.println("Server started: Waiting for packets...");
             try {
                 while (true) {
 
@@ -38,45 +35,43 @@ public class FsmFileReceiver implements Runnable {
                     receiverSocket.receive(packet);
 //                    packet = manipulator.manipulate(packet);
 //                    if (packet != null) {
+                    extractPkt(data, packet);
+                    checker.reset();
+                    checker.update(data, 0, contentLength);
+//                    System.out.println(checksum);
+//                    System.out.println("checksum of received data: " + checker.getValue());
 
-                        extractPkt(data, packet);
-                        checker.reset();
-                        checker.update(data, 0, contentLength);
-                        System.out.println(checksum);
-                        System.out.println("checksum of received data: " + checker.getValue());
 
-
-                        //toDo aufpassen dass nur eins ausgeführt wird !!!
-                        if (currentState == State.WAIT_FOR_ZERO &&
-                                checksum == checker.getValue() &&
-                                seq == 0) {
-                            //toDo deliver data, send ack, changes State
-                            processMsg(Msg.CORRECT_PACKET_ZERO);
-                        } else if (currentState == State.WAIT_FOR_ZERO &&
-                                (checksum != checker.getValue() ||
-                                        seq == 1)) {
-                            //toDo send ack again
-                            processMsg(Msg.CORRUPT_PACKET);
-                        } else if (currentState == State.WAIT_FOR_ONE &&
-                                checksum == checker.getValue() &&
-                                seq == 1) {
-                            //toDo deliver data, send ack, changes State
-                            processMsg(Msg.CORRECT_PACKET_ONE);
-                        } else if (currentState == State.WAIT_FOR_ONE &&
-                                (checksum != checker.getValue() ||
-                                        seq == 0)) {
-                            //toDo send ack again
-                            processMsg(Msg.CORRUPT_PACKET);
-                        }
+                    //toDo aufpassen dass nur eins ausgeführt wird !!!
+                    if (currentState == State.WAIT_FOR_ZERO &&
+                            checksum == checker.getValue() &&
+                            seq == 0) {
+                        //toDo deliver data, send ack, changes State
+                        processMsg(Msg.CORRECT_PACKET_ZERO);
+                    } else if (currentState == State.WAIT_FOR_ZERO &&
+                            (checksum != checker.getValue() ||
+                                    seq == 1)) {
+                        //toDo send ack again
+                        processMsg(Msg.CORRUPT_PACKET);
+                    } else if (currentState == State.WAIT_FOR_ONE &&
+                            checksum == checker.getValue() &&
+                            seq == 1) {
+                        //toDo deliver data, send ack, changes State
+                        processMsg(Msg.CORRECT_PACKET_ONE);
+                    } else if (currentState == State.WAIT_FOR_ONE &&
+                            (checksum != checker.getValue() ||
+                                    seq == 0)) {
+                        //toDo send ack again
+                        processMsg(Msg.CORRUPT_PACKET);
+                    }
 
 //                    }
 
                 }
             } catch (SocketTimeoutException e) {
-                System.out.println("Timeout Exception");
+                System.out.println("    Timeout Exception");
             } catch (Exception e) {
-                System.out.println("Good Morning Exception");
-                e.printStackTrace();
+                System.out.println("    Good Morning Exception");
             }
 
         } catch (SocketException e) {
@@ -85,7 +80,7 @@ public class FsmFileReceiver implements Runnable {
     }
 
     private void extractPkt(byte[] data, DatagramPacket packet) throws IOException {
-        System.out.println("Start");
+        System.out.println("    Beginning of extractPkt");
         counter++;
 
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(packet.getData()));
@@ -94,16 +89,16 @@ public class FsmFileReceiver implements Runnable {
 
         // Read SEQ 0/1
         seq = in.read();
-        System.out.println("seq " + seq);
+//        System.out.println("seq " + seq);
 
         // Combine Content Length Bytes
         byte[] check = new byte[8];
         for (int i = 0; i < check.length; i++) {
             check[i] = in.readByte();
-            System.out.println("checksum (for loop) " + check[i]);
+//            System.out.println("checksum (for loop) " + check[i]);
         }
 
-        System.out.println("check with buffer " + ByteBuffer.wrap(check).getLong());
+//        System.out.println("check with buffer " + ByteBuffer.wrap(check).getLong());
 
 
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
@@ -111,20 +106,20 @@ public class FsmFileReceiver implements Runnable {
         buffer.put(check);
         buffer.flip();
         checksum = buffer.getLong();
-        System.out.println("checksum of received data " + checksum);
+//        System.out.println("checksum of received data " + checksum);
 
         // Combine Content Length Bytes
         byte[] contentL = new byte[4];
         for (int i = 0; i < contentL.length; i++) {
             contentL[i] = in.readByte();
-            System.out.println("content Length (for loop) " + contentL[i]);
+//            System.out.println("content Length (for loop) " + contentL[i]);
         }
         ByteBuffer buffer2 = ByteBuffer.allocate(Long.BYTES);
         buffer2.put(contentL);
         buffer2.flip();
         contentLength = buffer2.getInt();
-        System.out.println("content Length " + contentLength);
-        System.out.println("data length " + data.length);
+//        System.out.println("content Length " + contentLength);
+//        System.out.println("data length " + data.length);
 
         // Control Output for data
         for (int i = 0; i < data.length; i++) {
@@ -139,10 +134,10 @@ public class FsmFileReceiver implements Runnable {
             char[] charBuffer = new char[contentLength];
             for (int i = 0; i < contentLength; i++) {
                 charBuffer[i] = (char) data[i];
-                System.out.println(charBuffer[i]);
+//                System.out.println(charBuffer[i]);
             }
             String string = new String(charBuffer);
-            System.out.println(String.valueOf(string));
+//            System.out.println(String.valueOf(string));
             file = new File(string);
 
             fileExists = true;
@@ -166,15 +161,13 @@ public class FsmFileReceiver implements Runnable {
                 fop.flush();
                 fop.close();
 
-
                 fileExists = false;
-
             }
         }
 
 
-        System.out.println("counter " + counter);
-        System.out.println("End");
+        System.out.println("    Number of received packets: " + counter);
+        System.out.println("    End of extractPkt");
     }
 
 
@@ -218,12 +211,14 @@ public class FsmFileReceiver implements Runnable {
     class ReceivePkt extends Transition {
         @Override
         public State execute(Msg input) {
-            System.out.println("Paket received");
+            System.out.println("    Paket received");
             if (currentState == State.WAIT_FOR_ONE) {
                 sendAck(1);
+                System.out.println("    Send Ack 1");
                 return State.WAIT_FOR_ZERO;
             } else {
                 sendAck(0);
+                System.out.println("    Send Ack 0");
                 return State.WAIT_FOR_ONE;
             }
         }
@@ -232,12 +227,13 @@ public class FsmFileReceiver implements Runnable {
     class ResendAck extends Transition {
         @Override
         public State execute(Msg input) {
-            System.out.println("Resend Ack");
             if (currentState == State.WAIT_FOR_ONE) {
                 sendAck(0);
+                System.out.println("    Resend Ack 0");
                 return currentState;
             } else {
                 sendAck(1);
+                System.out.println("    Resend Ack 1");
                 return currentState;
             }
 
@@ -255,22 +251,17 @@ public class FsmFileReceiver implements Runnable {
             CRC32 ackChecksum = new CRC32();
             ackChecksum.reset();
             ackChecksum.update(numberByte, 0, 1);
-            System.out.println();
-            System.out.println(ackChecksum.getValue());
             out.writeLong(ackChecksum.getValue());
             out.write(data);
             data = byteOut.toByteArray();
-            System.out.println(data.length);
         } catch (IOException e) {
             e.printStackTrace();
         }
         try {
             DatagramSocket socket = new DatagramSocket();
-            //         InetAddress ia = InetAddress.getLocalHost();
-            System.out.println("raus damit");
+//            InetAddress ia = InetAddress.getLocalHost();
             DatagramPacket packet = new DatagramPacket(data, data.length, returnAdress, 9000);
             socket.send(packet);
-            System.out.println("gesendet");
         } catch (IOException e) {
             e.printStackTrace();
         }
