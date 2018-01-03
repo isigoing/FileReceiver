@@ -28,19 +28,18 @@ public class FsmFileReceiver implements Runnable {
             DatagramSocket receiverSocket = new DatagramSocket(port);
 //            receiverSocket.setSoTimeout(10_000);
             DatagramPacket packet = new DatagramPacket(pkt, pkt.length);
-            Manipulator manipulator = new Manipulator(receiverSocket);
+//            Manipulator manipulator = new Manipulator(receiverSocket);
 //            FileOutputStream fop = new FileOutputStream(file);
             System.out.println("Waiting for packets...");
             try {
                 while (true) {
 
                     CRC32 checker = new CRC32();
-//                    receiverSocket.receive(packet);
-                    packet = manipulator.manipulate(packet);
-                    if (packet != null) {
+                    receiverSocket.receive(packet);
+//                    packet = manipulator.manipulate(packet);
+//                    if (packet != null) {
 
                         extractPkt(data, packet);
-                        System.out.println();
                         checker.reset();
                         checker.update(data, 0, contentLength);
                         System.out.println(checksum);
@@ -70,7 +69,7 @@ public class FsmFileReceiver implements Runnable {
                             processMsg(Msg.CORRUPT_PACKET);
                         }
 
-                    }
+//                    }
 
                 }
             } catch (SocketTimeoutException e) {
@@ -128,10 +127,10 @@ public class FsmFileReceiver implements Runnable {
         System.out.println("data length " + data.length);
 
         // Control Output for data
-//        for (int i = 0; i < data.length; i++) {
-//            data[i] = in.readByte();
+        for (int i = 0; i < data.length; i++) {
+            data[i] = in.readByte();
 //            System.out.println("data " + data[i]);
-//        }
+        }
 
 
         // Save data to File or create a new File
