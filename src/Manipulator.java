@@ -20,22 +20,26 @@ public class Manipulator {
         try {
             socket.receive(packet);
             returnPacket = packet;
+
 //            if (rand < 0.1) {
 //                // verwerfen
 //                lossCounter++;
 //                returnPacket = null;
-//
-//            } else if (rand > 0.1 && rand < 0.15) {
+//            }
+
+//            if (rand > 0.1 && rand < 0.15) {
 //                // duplizieren
 //                dupCounter++;
 //                returnPacket = prev;
 //
-//            } else if (rand > 0.15 && rand < 0.2) {
-//                // bitfehler
-//                errCounter++;
-//                packet.getData()[1000] = (byte)~packet.getData()[1000];
-//                returnPacket = packet;
 //            }
+
+            if (rand > 0.15 && rand < 0.2) {
+                // bitfehler
+                errCounter++;
+                packet.getData()[1000] = (byte) ~packet.getData()[1000]; //flipped das bit
+                returnPacket = packet;
+            }
 
         } catch (IOException e) {
             e.printStackTrace();

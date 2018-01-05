@@ -10,7 +10,6 @@ public class FsmFileReceiver implements Runnable {
     private File file;
     private boolean fileExists = false;
     private InetAddress returnAdress;
-    private int returnPort;
     private int counter = 0;
 
 
@@ -23,24 +22,22 @@ public class FsmFileReceiver implements Runnable {
 
         try {
             DatagramSocket receiverSocket = new DatagramSocket(port);
-//            receiverSocket.setSoTimeout(10_000);
+//            receiverSocket.setSoTimeout(5_000);
             DatagramPacket packet = new DatagramPacket(pkt, pkt.length);
-//            Manipulator manipulator = new Manipulator(receiverSocket);
-//            FileOutputStream fop = new FileOutputStream(file);
+            Manipulator manipulator = new Manipulator(receiverSocket);
             System.out.println("Server started: Waiting for packets...");
             try {
                 while (true) {
 
+
                     CRC32 checker = new CRC32();
-                    receiverSocket.receive(packet);
-//                    packet = manipulator.manipulate(packet);
-//                    if (packet != null) {
+//                    receiverSocket.receive(packet);
+                    packet = manipulator.manipulate(packet);
+                    manipulator.printData();
+                    if (packet != null) {
                     extractPkt(data, packet);
                     checker.reset();
                     checker.update(data, 0, contentLength);
-//                    System.out.println(checksum);
-//                    System.out.println("checksum of received data: " + checker.getValue());
-
 
                     //toDo aufpassen dass nur eins ausgeführt wird !!!
                     if (currentState == State.WAIT_FOR_ZERO &&
@@ -65,13 +62,14 @@ public class FsmFileReceiver implements Runnable {
                         processMsg(Msg.CORRUPT_PACKET);
                     }
 
-//                    }
+                    }
 
                 }
             } catch (SocketTimeoutException e) {
                 System.out.println("    Timeout Exception");
             } catch (Exception e) {
                 System.out.println("    Good Morning Exception");
+                e.printStackTrace();
             }
 
         } catch (SocketException e) {
@@ -85,11 +83,10 @@ public class FsmFileReceiver implements Runnable {
 
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(packet.getData()));
         returnAdress = packet.getAddress();
-        returnPort = packet.getPort();
 
         // Read SEQ 0/1
         seq = in.read();
-//        System.out.println("seq " + seq);
+//        System.out.println("      seq " + seq);
 
         // Combine Content Length Bytes
         byte[] check = new byte[8];
@@ -130,6 +127,7 @@ public class FsmFileReceiver implements Runnable {
 
         // Save data to File or create a new File
         if (!fileExists) {
+            counter = 1;
 
             char[] charBuffer = new char[contentLength];
             for (int i = 0; i < contentLength; i++) {
@@ -162,6 +160,7 @@ public class FsmFileReceiver implements Runnable {
                 fop.close();
 
                 fileExists = false;
+
             }
         }
 
