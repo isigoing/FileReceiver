@@ -35,7 +35,6 @@ public class FsmFileReceiver implements Runnable {
             DatagramSocket receiverSocket = new DatagramSocket(port);
 //            receiverSocket.setSoTimeout(5_000);
             DatagramPacket packet = new DatagramPacket(pkt, pkt.length);
-//            Manipulator manipulator = new Manipulator(receiverSocket);
             System.out.println("Server started: Waiting for packets...");
             try {
                 while (true) {
