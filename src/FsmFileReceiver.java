@@ -54,7 +54,6 @@ public class FsmFileReceiver implements Runnable {
 
                     if (duplicate) {
                         duplicatePacket++;
-                        System.err.println(duplicatePacket);
                     } else {
                         extractPkt(data, packet);
                     }
@@ -101,51 +100,71 @@ public class FsmFileReceiver implements Runnable {
 
     private void extractPkt(byte[] data, DatagramPacket packet) throws IOException {
         System.out.println("    Beginning of extractPkt");
-        counter++;
-
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(packet.getData()));
         returnAdress = packet.getAddress();
+        if (loss) {
 
-        // Read SEQ 0/1
-        seq = in.read();
+            byte[] dataLoss = new byte[1200];
+            int seqLoss = in.read();
+            byte[] checkLoss = new byte[8];
+            for (int i = 0; i < checkLoss.length; i++) {
+                checkLoss[i] = in.readByte();
+            }
+            byte[] contentLengthLoss = new byte[4];
+            for (int i = 0; i < contentLengthLoss.length; i++) {
+                contentLengthLoss[i] = in.readByte();
+            }
+            for (int i = 0; i < dataLoss.length; i++) {
+                dataLoss[i] = in.readByte();
+            }
+            lostPacket++;
 
-        // Combine Content Length Bytes
-        byte[] check = new byte[8];
-        for (int i = 0; i < check.length; i++) {
-            check[i] = in.readByte();
+        } else {
+
+            counter++;
+
+
+            // Read SEQ 0/1
+            seq = in.read();
+
+            // Combine Content Length Bytes
+            byte[] check = new byte[8];
+            for (int i = 0; i < check.length; i++) {
+                check[i] = in.readByte();
+            }
+            ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+            buffer.clear();
+            buffer.put(check);
+            buffer.flip();
+            checksum = buffer.getLong();
+
+            // Combine Content Length Bytes
+            byte[] contentL = new byte[4];
+            for (int i = 0; i < contentL.length; i++) {
+                contentL[i] = in.readByte();
+            }
+            ByteBuffer buffer2 = ByteBuffer.allocate(Long.BYTES);
+            buffer2.put(contentL);
+            buffer2.flip();
+            contentLength = buffer2.getInt();
+
+
+            // Fill Data with Bytes
+            for (int i = 0; i < data.length; i++) {
+                data[i] = in.readByte();
+            }
+
+            if (bitError) {
+                Random rand = new Random();
+                int randomNum = rand.nextInt((data.length) + 1);
+                data[randomNum] = (byte) ~data[randomNum];
+                bitErrorPacket++;
+            }
+
+
+            System.out.println("    Number of received packets: " + counter);
+            System.out.println("    End of extractPkt");
         }
-        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-        buffer.clear();
-        buffer.put(check);
-        buffer.flip();
-        checksum = buffer.getLong();
-
-        // Combine Content Length Bytes
-        byte[] contentL = new byte[4];
-        for (int i = 0; i < contentL.length; i++) {
-            contentL[i] = in.readByte();
-        }
-        ByteBuffer buffer2 = ByteBuffer.allocate(Long.BYTES);
-        buffer2.put(contentL);
-        buffer2.flip();
-        contentLength = buffer2.getInt();
-
-
-        // Fill Data with Bytes
-        for (int i = 0; i < data.length; i++) {
-            data[i] = in.readByte();
-        }
-
-        if (bitError) {
-            Random rand = new Random();
-            int randomNum = rand.nextInt((data.length) + 1);
-            data[randomNum] = (byte) ~data[randomNum];
-            bitErrorPacket++;
-        }
-
-
-        System.out.println("    Number of received packets: " + counter);
-        System.out.println("    End of extractPkt");
     }
 
     private void extractData(byte[] data) throws IOException {
