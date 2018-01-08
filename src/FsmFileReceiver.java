@@ -180,8 +180,7 @@ public class FsmFileReceiver implements Runnable {
                 fop.close();
 
                 fileExists = false;
-
-
+                printOccuredErrors();
             }
         }
     }
