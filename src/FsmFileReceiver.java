@@ -11,6 +11,16 @@ public class FsmFileReceiver implements Runnable {
     private boolean fileExists = false;
     private InetAddress returnAdress;
     private int counter = 0;
+    private double random;
+    private double duplicateChance = 0.05;
+    private double bitErrorChance = 0.05;
+    private double loseChance = 0.1;
+    private int duplicatePacket;
+    private int bitErrorPacket;
+    private int lostPacket;
+    private boolean duplicate = false;
+    private boolean bitError = false;
+    private boolean loss = false;
 
 
     @Override
@@ -24,47 +34,59 @@ public class FsmFileReceiver implements Runnable {
             DatagramSocket receiverSocket = new DatagramSocket(port);
 //            receiverSocket.setSoTimeout(5_000);
             DatagramPacket packet = new DatagramPacket(pkt, pkt.length);
-            Manipulator manipulator = new Manipulator(receiverSocket);
+//            Manipulator manipulator = new Manipulator(receiverSocket);
             System.out.println("Server started: Waiting for packets...");
             try {
                 while (true) {
 
-
                     CRC32 checker = new CRC32();
-//                    receiverSocket.receive(packet);
-                    packet = manipulator.manipulate(packet);
-                    manipulator.printData();
-                    if (packet != null) {
-                    extractPkt(data, packet);
+                    random = Math.random();
+                    if (random < loseChance) {
+                        loss = true;
+                    } else if (random < loseChance + duplicateChance) {
+                        duplicate = true;
+                    } else if (random < loseChance + duplicateChance + bitErrorChance) {
+                        bitError = true;
+                    }
+                    receiverSocket.receive(packet);
+//                    packet = manipulator.manipulate(packet);
+//                    manipulator.printData();
+//                    if (packet != null) {
+                    if (duplicate) {
+                        duplicatePacket++;
+                        System.err.println(duplicatePacket);
+                    } else {
+                        extractPkt(data, packet);
+                    }
                     checker.reset();
                     checker.update(data, 0, contentLength);
 
-                    //toDo aufpassen dass nur eins ausgeführt wird !!!
-                    if (currentState == State.WAIT_FOR_ZERO &&
-                            checksum == checker.getValue() &&
-                            seq == 0) {
-                        //toDo deliver data, send ack, changes State
-                        processMsg(Msg.CORRECT_PACKET_ZERO);
-                    } else if (currentState == State.WAIT_FOR_ZERO &&
-                            (checksum != checker.getValue() ||
-                                    seq == 1)) {
-                        //toDo send ack again
+                    if (currentState == State.WAIT_FOR_ZERO && checksum == checker.getValue() && seq == 0) {
+
+                        extractData(data);
+                        processMsg(Msg.OK_PACKET_ZERO);
+
+                    } else if (currentState == State.WAIT_FOR_ZERO && (checksum != checker.getValue() || seq == 1)) {
+
                         processMsg(Msg.CORRUPT_PACKET);
-                    } else if (currentState == State.WAIT_FOR_ONE &&
-                            checksum == checker.getValue() &&
-                            seq == 1) {
-                        //toDo deliver data, send ack, changes State
-                        processMsg(Msg.CORRECT_PACKET_ONE);
-                    } else if (currentState == State.WAIT_FOR_ONE &&
-                            (checksum != checker.getValue() ||
-                                    seq == 0)) {
-                        //toDo send ack again
+
+                    } else if (currentState == State.WAIT_FOR_ONE && checksum == checker.getValue() && seq == 1) {
+
+                        extractData(data);
+                        processMsg(Msg.OK_PACKET_ONE);
+
+                    } else if (currentState == State.WAIT_FOR_ONE && (checksum != checker.getValue() || seq == 0)) {
+
                         processMsg(Msg.CORRUPT_PACKET);
                     }
 
-                    }
-
+//                    }
+                    duplicate = false;
+                    bitError = false;
+                    loss = false;
                 }
+
+
             } catch (SocketTimeoutException e) {
                 System.out.println("    Timeout Exception");
             } catch (Exception e) {
@@ -86,56 +108,49 @@ public class FsmFileReceiver implements Runnable {
 
         // Read SEQ 0/1
         seq = in.read();
-//        System.out.println("      seq " + seq);
 
         // Combine Content Length Bytes
         byte[] check = new byte[8];
         for (int i = 0; i < check.length; i++) {
             check[i] = in.readByte();
-//            System.out.println("checksum (for loop) " + check[i]);
         }
-
-//        System.out.println("check with buffer " + ByteBuffer.wrap(check).getLong());
-
-
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
         buffer.clear();
         buffer.put(check);
         buffer.flip();
         checksum = buffer.getLong();
-//        System.out.println("checksum of received data " + checksum);
 
         // Combine Content Length Bytes
         byte[] contentL = new byte[4];
         for (int i = 0; i < contentL.length; i++) {
             contentL[i] = in.readByte();
-//            System.out.println("content Length (for loop) " + contentL[i]);
         }
         ByteBuffer buffer2 = ByteBuffer.allocate(Long.BYTES);
         buffer2.put(contentL);
         buffer2.flip();
         contentLength = buffer2.getInt();
-//        System.out.println("content Length " + contentLength);
-//        System.out.println("data length " + data.length);
 
-        // Control Output for data
+        // Fill Data with Bytes
         for (int i = 0; i < data.length; i++) {
             data[i] = in.readByte();
-//            System.out.println("data " + data[i]);
         }
 
-
         // Save data to File or create a new File
+
+
+        System.out.println("    Number of received packets: " + counter);
+        System.out.println("    End of extractPkt");
+    }
+
+    private void extractData(byte[] data) throws IOException {
         if (!fileExists) {
             counter = 1;
 
             char[] charBuffer = new char[contentLength];
             for (int i = 0; i < contentLength; i++) {
                 charBuffer[i] = (char) data[i];
-//                System.out.println(charBuffer[i]);
             }
             String string = new String(charBuffer);
-//            System.out.println(String.valueOf(string));
             file = new File(string);
 
             fileExists = true;
@@ -152,7 +167,6 @@ public class FsmFileReceiver implements Runnable {
                 byte[] newData = new byte[contentLength];
                 for (int i = 0; i < newData.length; i++) {
                     newData[i] = data[i];
-//                    System.out.println((char) newData[i]);
                 }
                 FileOutputStream fop = new FileOutputStream(file, true);
                 fop.write(newData);
@@ -163,10 +177,6 @@ public class FsmFileReceiver implements Runnable {
 
             }
         }
-
-
-        System.out.println("    Number of received packets: " + counter);
-        System.out.println("    End of extractPkt");
     }
 
 
@@ -177,7 +187,7 @@ public class FsmFileReceiver implements Runnable {
 
     // all messages/conditions which can occur
     enum Msg {
-        CORRECT_PACKET_ONE, CORRECT_PACKET_ZERO, CORRUPT_PACKET
+        OK_PACKET_ONE, OK_PACKET_ZERO, CORRUPT_PACKET
     }
 
     private State currentState;
@@ -186,9 +196,9 @@ public class FsmFileReceiver implements Runnable {
     public FsmFileReceiver() {
         currentState = State.WAIT_FOR_ZERO;
         transition = new Transition[State.values().length][Msg.values().length];
-        transition[State.WAIT_FOR_ZERO.ordinal()][Msg.CORRECT_PACKET_ZERO.ordinal()] = new ReceivePkt();
+        transition[State.WAIT_FOR_ZERO.ordinal()][Msg.OK_PACKET_ZERO.ordinal()] = new ReceivePkt();
         transition[State.WAIT_FOR_ZERO.ordinal()][Msg.CORRUPT_PACKET.ordinal()] = new ResendAck();
-        transition[State.WAIT_FOR_ONE.ordinal()][Msg.CORRECT_PACKET_ONE.ordinal()] = new ReceivePkt();
+        transition[State.WAIT_FOR_ONE.ordinal()][Msg.OK_PACKET_ONE.ordinal()] = new ReceivePkt();
         transition[State.WAIT_FOR_ONE.ordinal()][Msg.CORRUPT_PACKET.ordinal()] = new ResendAck();
         System.out.println("INFO FSM constructed, current state: " + currentState);
     }
