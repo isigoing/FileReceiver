@@ -10,7 +10,7 @@ public class FsmFileReceiver implements Runnable {
     private int contentLength;
     private File file;
     private boolean fileExists = false;
-    private InetAddress returnAdress;
+    private InetAddress returnAddress;
     private int counter = 0;
     private double random;
     private double duplicateChance = 0.05;
@@ -100,10 +100,9 @@ public class FsmFileReceiver implements Runnable {
     private void extractPkt(byte[] data, DatagramPacket packet) throws IOException {
         System.out.println("    Beginning of extractPkt");
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(packet.getData()));
-        returnAdress = packet.getAddress();
+        returnAddress = packet.getAddress();
         if (loss) {
 
-            byte[] dataLoss = new byte[1200];
             int seqLoss = in.read();
             byte[] checkLoss = new byte[8];
             for (int i = 0; i < checkLoss.length; i++) {
@@ -113,6 +112,7 @@ public class FsmFileReceiver implements Runnable {
             for (int i = 0; i < contentLengthLoss.length; i++) {
                 contentLengthLoss[i] = in.readByte();
             }
+            byte[] dataLoss = new byte[1200];
             for (int i = 0; i < dataLoss.length; i++) {
                 dataLoss[i] = in.readByte();
             }
@@ -301,7 +301,7 @@ public class FsmFileReceiver implements Runnable {
         try {
             DatagramSocket socket = new DatagramSocket();
 //            InetAddress ia = InetAddress.getLocalHost();
-            DatagramPacket packet = new DatagramPacket(data, data.length, returnAdress, 9000);
+            DatagramPacket packet = new DatagramPacket(data, data.length, returnAddress, 9000);
             socket.send(packet);
         } catch (IOException e) {
             e.printStackTrace();
