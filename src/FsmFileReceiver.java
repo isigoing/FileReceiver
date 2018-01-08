@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
+import java.util.Random;
 import java.util.zip.CRC32;
 
 public class FsmFileReceiver implements Runnable {
@@ -48,10 +49,9 @@ public class FsmFileReceiver implements Runnable {
                     } else if (random < loseChance + duplicateChance + bitErrorChance) {
                         bitError = true;
                     }
+
                     receiverSocket.receive(packet);
-//                    packet = manipulator.manipulate(packet);
-//                    manipulator.printData();
-//                    if (packet != null) {
+
                     if (duplicate) {
                         duplicatePacket++;
                         System.err.println(duplicatePacket);
@@ -80,7 +80,7 @@ public class FsmFileReceiver implements Runnable {
                         processMsg(Msg.CORRUPT_PACKET);
                     }
 
-//                    }
+
                     duplicate = false;
                     bitError = false;
                     loss = false;
@@ -130,12 +130,18 @@ public class FsmFileReceiver implements Runnable {
         buffer2.flip();
         contentLength = buffer2.getInt();
 
+
         // Fill Data with Bytes
         for (int i = 0; i < data.length; i++) {
             data[i] = in.readByte();
         }
 
-        // Save data to File or create a new File
+        if (bitError) {
+            Random rand = new Random();
+            int randomNum = rand.nextInt((data.length) + 1);
+            data[randomNum] = (byte) ~data[randomNum];
+            bitErrorPacket++;
+        }
 
 
         System.out.println("    Number of received packets: " + counter);
@@ -175,8 +181,17 @@ public class FsmFileReceiver implements Runnable {
 
                 fileExists = false;
 
+
             }
         }
+    }
+
+    private void printOccuredErrors() {
+        System.out.println("        ##################################");
+        System.out.println("        ##  lost Packets:       " + lostPacket);
+        System.out.println("        ##  duplicate Packets:  " + duplicatePacket);
+        System.out.println("        ##  bit Error Packets:  " + bitErrorPacket);
+        System.out.println("        ##################################");
     }
 
 
