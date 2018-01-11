@@ -22,6 +22,8 @@ public class FsmFileReceiver implements Runnable {
     private boolean duplicate = false;
     private boolean bitError = false;
     private boolean loss = false;
+    private long startTime;
+    private long endTime;
 
 
     @Override
@@ -33,7 +35,6 @@ public class FsmFileReceiver implements Runnable {
 
         try {
             DatagramSocket receiverSocket = new DatagramSocket(port);
-//            receiverSocket.setSoTimeout(5_000);
             DatagramPacket packet = new DatagramPacket(pkt, pkt.length);
             System.out.println("Server started: Waiting for packets...");
             try {
@@ -50,6 +51,9 @@ public class FsmFileReceiver implements Runnable {
                     }
 
                     receiverSocket.receive(packet);
+                    if(!fileExists){
+                        startTime = System.currentTimeMillis();
+                    }
 
                     if (duplicate) {
                         duplicatePacket++;
@@ -76,6 +80,11 @@ public class FsmFileReceiver implements Runnable {
                     } else if (currentState == State.WAIT_FOR_ONE && (checksum != checker.getValue() || seq == 0)) {
 
                         processMsg(Msg.CORRUPT_PACKET);
+                    }
+
+
+                    if(currentState == State.WAIT_FOR_ONE && !fileExists){
+                        processMsg(Msg.RESET);
                     }
 
 
@@ -199,8 +208,20 @@ public class FsmFileReceiver implements Runnable {
 
                 fileExists = false;
                 printOccuredErrors();
+                printThroughPut();
+
             }
         }
+    }
+
+    private void printThroughPut() {
+        double time;
+        endTime = System.currentTimeMillis();
+        time = (endTime-startTime)/1000;
+        double sizeMbit = (file.length()* 8) /1_000_000;
+        System.out.println("        ##################################");
+        System.out.println("        ##  ThroughPut:       " + sizeMbit/time +" Mbits/s");
+        System.out.println("        ##################################");
     }
 
     private void printOccuredErrors() {
@@ -219,7 +240,7 @@ public class FsmFileReceiver implements Runnable {
 
     // all messages/conditions which can occur
     enum Msg {
-        OK_PACKET_ONE, OK_PACKET_ZERO, CORRUPT_PACKET
+        OK_PACKET_ONE, OK_PACKET_ZERO, CORRUPT_PACKET, RESET
     }
 
     private State currentState;
@@ -232,6 +253,7 @@ public class FsmFileReceiver implements Runnable {
         transition[State.WAIT_FOR_ZERO.ordinal()][Msg.CORRUPT_PACKET.ordinal()] = new ResendAck();
         transition[State.WAIT_FOR_ONE.ordinal()][Msg.OK_PACKET_ONE.ordinal()] = new ReceivePkt();
         transition[State.WAIT_FOR_ONE.ordinal()][Msg.CORRUPT_PACKET.ordinal()] = new ResendAck();
+        transition[State.WAIT_FOR_ONE.ordinal()][Msg.RESET.ordinal()] = new Reset();
         System.out.println("INFO FSM constructed, current state: " + currentState);
     }
 
@@ -278,6 +300,13 @@ public class FsmFileReceiver implements Runnable {
                 return currentState;
             }
 
+        }
+    }
+
+    class Reset extends Transition {
+        @Override
+        public State execute(Msg input) {
+            return State.WAIT_FOR_ZERO;
         }
     }
 
