@@ -12,26 +12,25 @@ public class FsmFileReceiver implements Runnable {
     private boolean fileExists = false;
     private InetAddress returnAddress;
     private int counter = 0;
-    private double random;
-    private double duplicateChance = 0.05;
-    private double bitErrorChance = 0.05;
-    private double loseChance = 0.1;
     private int duplicatePacket;
     private int bitErrorPacket;
     private int lostPacket;
     private boolean duplicate = false;
     private boolean bitError = false;
     private boolean loss = false;
-    private long startTime;
-    private long endTime;
+    private double startTime;
+    private int imgCounter = 1;
+    private int txtCounter = 1;
+    private int mp3Counter = 1;
+    private byte[] pkt = new byte[1213];
+    private byte[] data = new byte[1200];
 
 
     @Override
     public void run() {
 
         int port = 10_000;
-        byte[] pkt = new byte[1213];
-        byte[] data = new byte[1200];
+
 
         try {
             DatagramSocket receiverSocket = new DatagramSocket(port);
@@ -41,7 +40,10 @@ public class FsmFileReceiver implements Runnable {
                 while (true) {
 
                     CRC32 checker = new CRC32();
-                    random = Math.random();
+                    double random = Math.random();
+                    double duplicateChance = 0.05;
+                    double bitErrorChance = 0.05;
+                    double loseChance = 0.1;
                     if (random < loseChance) {
                         loss = true;
                     } else if (random < loseChance + duplicateChance) {
@@ -51,7 +53,7 @@ public class FsmFileReceiver implements Runnable {
                     }
 
                     receiverSocket.receive(packet);
-                    if(!fileExists){
+                    if (!fileExists) {
                         startTime = System.currentTimeMillis();
                     }
 
@@ -83,7 +85,7 @@ public class FsmFileReceiver implements Runnable {
                     }
 
 
-                    if(currentState == State.WAIT_FOR_ONE && !fileExists){
+                    if (currentState == State.WAIT_FOR_ONE && !fileExists) {
                         processMsg(Msg.RESET);
                     }
 
@@ -185,6 +187,24 @@ public class FsmFileReceiver implements Runnable {
             }
             String string = new String(charBuffer);
             file = new File(string);
+            if (file.exists()) {
+                int index = string.indexOf(".");
+                String dataName = string.substring(0, index);
+                String dataEnding = string.substring(index, string.length());
+                if (dataEnding.equals(".txt")) {
+                    file = new File(dataName + txtCounter + dataEnding);
+                    txtCounter++;
+                }
+                if (dataEnding.equals(".jpg")) {
+                    file = new File(dataName + imgCounter + dataEnding);
+                    imgCounter++;
+                }
+                if (dataEnding.equals(".mp3")) {
+                    file = new File(dataName + mp3Counter + dataEnding);
+                    mp3Counter++;
+                }
+
+            }
 
             fileExists = true;
 
@@ -198,9 +218,7 @@ public class FsmFileReceiver implements Runnable {
             } else {
 
                 byte[] newData = new byte[contentLength];
-                for (int i = 0; i < newData.length; i++) {
-                    newData[i] = data[i];
-                }
+                System.arraycopy(data, 0, newData, 0, newData.length);
                 FileOutputStream fop = new FileOutputStream(file, true);
                 fop.write(newData);
                 fop.flush();
@@ -209,27 +227,38 @@ public class FsmFileReceiver implements Runnable {
                 fileExists = false;
                 printOccuredErrors();
                 printThroughPut();
+                resetData();
 
             }
         }
+
+    }
+
+    private void resetData() {
+        pkt = new byte[1213];
+        data = new byte[1200];
     }
 
     private void printThroughPut() {
-        double time;
-        endTime = System.currentTimeMillis();
-        time = (endTime-startTime)/1000;
-        double sizeMbit = (file.length()* 8) /1_000_000;
-        System.out.println("        ##################################");
-        System.out.println("        ##  ThroughPut:       " + sizeMbit/time +" Mbits/s");
-        System.out.println("        ##################################");
+        double endTime = System.currentTimeMillis();
+        double time = (endTime - startTime) / 1000;
+        double sizeMbit = (file.length() * 8) / 1_000_000;
+        System.out.println("        #############################################");
+        System.out.println("        ##  File Size:           " + file.length() + " Byte");
+        System.out.println("        ##  Time needed:         " + time + " Seconds");
+        System.out.println("        ##  ThroughPut:          " + sizeMbit / time + " Mbits/s");
+        System.out.println("        #############################################");
     }
 
     private void printOccuredErrors() {
-        System.out.println("        ##################################");
+        System.out.println("        #############################################");
         System.out.println("        ##  lost Packets:       " + lostPacket);
         System.out.println("        ##  duplicate Packets:  " + duplicatePacket);
         System.out.println("        ##  bit Error Packets:  " + bitErrorPacket);
-        System.out.println("        ##################################");
+        System.out.println("        #############################################");
+        lostPacket = 0;
+        duplicatePacket = 0;
+        bitErrorPacket = 0;
     }
 
 
@@ -246,7 +275,7 @@ public class FsmFileReceiver implements Runnable {
     private State currentState;
     private Transition[][] transition;
 
-    public FsmFileReceiver() {
+    FsmFileReceiver() {
         currentState = State.WAIT_FOR_ZERO;
         transition = new Transition[State.values().length][Msg.values().length];
         transition[State.WAIT_FOR_ZERO.ordinal()][Msg.OK_PACKET_ZERO.ordinal()] = new ReceivePkt();
@@ -257,7 +286,7 @@ public class FsmFileReceiver implements Runnable {
         System.out.println("INFO FSM constructed, current state: " + currentState);
     }
 
-    public void processMsg(Msg input) {
+    private void processMsg(Msg input) {
         System.out.println("INFO Received " + input + " in state " + currentState);
         Transition trans = transition[currentState.ordinal()][input.ordinal()];
         if (trans != null) {
