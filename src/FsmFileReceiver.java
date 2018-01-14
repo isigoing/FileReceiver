@@ -31,7 +31,6 @@ public class FsmFileReceiver implements Runnable {
 
         int port = 10_000;
 
-
         try {
             DatagramSocket receiverSocket = new DatagramSocket(port);
             DatagramPacket packet = new DatagramPacket(pkt, pkt.length);
@@ -358,7 +357,6 @@ public class FsmFileReceiver implements Runnable {
         }
         try {
             DatagramSocket socket = new DatagramSocket();
-//            InetAddress ia = InetAddress.getLocalHost();
             DatagramPacket packet = new DatagramPacket(data, data.length, returnAddress, 9000);
             socket.send(packet);
         } catch (IOException e) {
